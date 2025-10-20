@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pharmanet – Homepage</title>
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #f8f9fa;
+      margin: 0;
+      scroll-behavior: smooth;
+    }
+
+    /* ✅ Parallax Background */
+    .parallax {
+      background-image: url("{{ url_for('static', filename='pharmacy.jpg') }}");
+      height: 100vh;
+      background-attachment: fixed;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: cover;
+    }
+
+    .overlay {
+      background-color: rgba(255, 255, 255, 0.75);
+      height: 100%;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 100px 20px;
+    }
+
+    /* Navbar */
+    .navbar {
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      z-index: 10;
+      position: sticky;
+      top: 0;
+    }
+
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+      font-size: 1.4rem;
+      color: #4a5c8a;
+      text-decoration: none;
+    }
+
+    .navbar-brand span {
+      font-style: italic;
+      transition: color 0.3s ease;
+    }
+
+    .navbar-brand:hover span {
+      color: #3b4f78;
+    }
+
+    /* Buttons */
+    .btn-outline-primary {
+      color: #4a5c8a;
+      border-color: #4a5c8a;
+    }
+
+    .btn-outline-primary:hover {
+      background-color: #4a5c8a;
+      color: white;
+    }
+
+    .btn-primary {
+      background-color: #4a5c8a;
+      border: none;
+    }
+
+    .btn-primary:hover {
+      background-color: #3a4d75;
+    }
+
+    .btn-success {
+      background-color: #2a9d8f;
+      border: none;
+    }
+
+    .btn-success:hover {
+      background-color: #21867a;
+    }
+
+    /* Search Suggestions */
+    #suggestions {
+      position: absolute;
+      background: white;
+      border: 1px solid #ddd;
+      width: 250px;
+      max-height: 200px;
+      overflow-y: auto;
+      border-radius: 5px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+      z-index: 20;
+    }
+
+    #suggestions button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 8px 10px;
+      border: none;
+      background: white;
+      cursor: pointer;
+    }
+
+    #suggestions button:hover {
+      background-color: #f0f0f0;
+    }
+
+    footer {
+      background: #fff;
+      color: #777;
+      text-align: center;
+      padding: 10px;
+      border-top: 1px solid #eee;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ✅ Navbar -->
+  <header class="navbar navbar-light">
+    <div class="container d-flex justify-content-between align-items-center py-2 position-relative">
+      <a href="/" class="navbar-brand">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#4a5c8a" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="2"/>
+          <path d="M12 2v5M12 17v5M4.22 4.22l3.54 3.54M16.24 16.24l3.54 3.54M2 12h5M17 12h5M4.22 19.78l3.54-3.54M16.24 7.76l3.54-3.54"
+                stroke="#4a5c8a" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span>Pharmanet</span>
+      </a>
+
+      <div class="d-flex align-items-center position-relative">
+        <div style="position: relative;">
+          <input id="search-input" type="text" placeholder="Search for medicines..." class="form-control me-2" style="width: 250px;">
+          <div id="suggestions"></div>
+        </div>
+        <button id="search-btn" class="btn btn-outline-primary me-2">Search</button>
+        <button class="btn btn-primary" onclick="window.location.href='/login'">Login</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ✅ Parallax Hero -->
+  <section class="parallax">
+    <div class="overlay">
+      <h1 class="fw-bold text-dark">Welcome to Pharmanet</h1>
+      <p class="text-dark mb-4">Your trusted online pharmacy for health, wellness, and convenience.</p>
+      <button class="btn btn-success btn-lg" onclick="window.location.href='/register'">Create Your Account</button>
+    </div>
+  </section>
+
+  <footer class="text-center py-3 bg-white border-top">
+    © 2025 Pharmanet. All rights reserved.
+  </footer>
+
+  <!-- ✅ Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    const searchInput = document.getElementById("search-input");
+    const suggestionsBox = document.getElementById("suggestions");
+    const searchBtn = document.getElementById("search-btn");
+
+    // 🔍 Live Suggestions
+    searchInput.addEventListener("input", async () => {
+      const query = searchInput.value.trim();
+      if (!query) {
+        suggestionsBox.innerHTML = "";
+        return;
+      }
+
+      try {
+        const response = await fetch(`/suggest?query=${encodeURIComponent(query)}`);
+        const suggestions = await response.json();
+
+        if (suggestions.length > 0) {
+          suggestionsBox.innerHTML = suggestions
+            .map(s => `<button>${s}</button>`)
+            .join("");
+
+          document.querySelectorAll("#suggestions button").forEach(btn => {
+            btn.addEventListener("click", () => {
+              searchInput.value = btn.textContent;
+              suggestionsBox.innerHTML = "";
+            });
+          });
+        } else {
+          suggestionsBox.innerHTML = "";
+        }
+      } catch (err) {
+        console.error("Error fetching suggestions:", err);
+      }
+    });
+
+    // 🚀 Search Button Redirect
+    searchBtn.addEventListener("click", () => {
+      const query = searchInput.value.trim();
+      if (!query) {
+        alert("Please enter a search term.");
+        return;
+      }
+      window.location.href = `/medicine/${encodeURIComponent(query)}`;
+    });
+  </script>
+</body>
+</html>
