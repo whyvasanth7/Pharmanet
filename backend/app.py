@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, jsonify, url_for
+from flask import Flask, render_template, request, jsonify, url_for, flash, session, redirect
 import sqlite3
 import os
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(
     __name__,
@@ -10,10 +11,13 @@ app = Flask(
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "pharmanet.db")
 
+app.secret_key = os.urandom(24) 
+
 def query_db(query, args=(), one=False):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute(query, args)
+    conn.commit()
     rows = cur.fetchall()
     conn.close()
     return (rows[0] if rows else None) if one else rows
@@ -98,6 +102,81 @@ def medicine_details(name):
         alternatives=alternatives,
         query=name
     )
+
+# Route for the Create Account page
+@app.route('/create-account', methods=['GET', 'POST'])
+def create_account():
+    if request.method == 'POST':
+        first_name = request.form['first_name']
+        last_name = request.form['last_name']
+        email = request.form['email']
+        phone = request.form['phone']
+        address = request.form['address']
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+
+        if password != confirm_password:
+            flash('Passwords do not match', 'danger')
+            return redirect(url_for('create_account'))
+
+        # Check if email already exists
+        existing_user = query_db('SELECT * FROM User WHERE Email = ?', [email], one=True)
+        if existing_user:
+            flash('Email already registered', 'danger')
+            return redirect(url_for('create_account'))
+
+        # Hash the password before saving
+        hashed_password = generate_password_hash(password)
+
+        # Insert new user into the database
+        query_db('INSERT INTO User (FirstName, LastName, Email, Phone, Address, Password) VALUES (?, ?, ?, ?, ?, ?)',
+                 [first_name, last_name, email, phone, address, hashed_password])
+        flash('Account created successfully', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('create_account.html')
+
+
+# Route for the Login page
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+
+        # Check if user exists
+        user = query_db('SELECT * FROM User WHERE Email = ?', [email], one=True)
+        if user and check_password_hash(user[6], password):  # Assuming password is the 7th column
+            # Login success, store user info in session
+            session['user_id'] = user[0]  # User ID (Assuming UserID is the 1st column)
+            session['user_first_name'] = user[1]  # First Name (Assuming First Name is the 2nd column)
+            session['user_last_name'] = user[2]  # Last Name (Assuming Last Name is the 3rd column)
+            session['user_email'] = user[3]  # Email (Assuming Email is the 4th column)
+            session['user_phone'] = user[4]  # Phone (Assuming Phone is the 5th column)
+            session['user_address'] = user[5] # Address (Assuming Address is the 6th column)
+            flash('Login successful', 'success')
+            return redirect(url_for('dashboard'))  # Redirect to user dashboard or home page
+
+        else:
+            flash('Invalid email or password', 'danger')
+            return redirect(url_for('login'))
+
+    return render_template('login.html')
+
+
+# Route for the dashboard page
+@app.route('/dashboard')
+def dashboard():
+    if 'user_id' not in session:  # Check if the user is logged in
+        return redirect(url_for('login'))  # If not logged in, redirect to login page
+    
+    # If logged in, render the dashboard and pass user info from session
+    return render_template('dashboard.html', 
+                           first_name=session['user_first_name'],
+                           last_name=session['user_last_name'],
+                           email=session['user_email'],
+                           phone=session['user_phone'],
+                           address=session['user_address'])
 
 
 if __name__ == "__main__":

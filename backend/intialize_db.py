@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "../pharmanet.db")
+DB_PATH = os.path.join(os.path.dirname(__file__), "pharmanet.db")
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "../static/meds")
 PLACEHOLDER_PATH = "meds/placeholder.jpg"  # ✅ fallback for missing images
 
@@ -30,6 +30,22 @@ cur = conn.cursor()
 # Drop the existing tables
 cur.execute("DROP TABLE IF EXISTS medicines")
 cur.execute("DROP TABLE IF EXISTS compositions")
+cur.execute("DROP TABLE IF EXISTS User")  # Adding this line to ensure the User table is created.
+
+# ---------------------------
+# 🧑‍💻 Create User Table (for user authentication)
+# ---------------------------
+cur.execute("""
+CREATE TABLE IF NOT EXISTS User (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    FirstName TEXT NOT NULL,
+    LastName TEXT NOT NULL,
+    Email TEXT NOT NULL UNIQUE,
+    Phone TEXT NOT NULL,
+    Address TEXT NOT NULL,
+    Password TEXT NOT NULL
+)
+""")
 
 # ---------------------------
 # 📝 Create Compositions Table

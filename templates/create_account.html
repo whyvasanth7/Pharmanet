@@ -148,78 +148,50 @@
         <span>Pharmanet</span>
       </a>
 
-      <div class="d-flex align-items-center position-relative">
-        <div style="position: relative;">
-          <input id="search-input" type="text" placeholder="Search for medicines..." class="form-control me-2" style="width: 250px;">
-          <div id="suggestions"></div>
-        </div>
-        <button id="search-btn" class="btn btn-outline-primary me-2">Search</button>
-        <button class="btn btn-primary" onclick="window.location.href='/login'">Login</button>
-      </div>
-    </div>
   </header>
 
   <!-- ✅ Parallax Hero -->
-  <section class="parallax">
-    <div class="overlay">
-      <h1 class="fw-bold text-dark">Welcome to Pharmanet</h1>
-      <p class="text-dark mb-4">Your trusted online pharmacy for health, wellness, and convenience.</p>
-      <button class="btn btn-success btn-lg" onclick="window.location.href='/create-account'">Create Your Account</button>
-    </div>
-  </section>
+
+  <!-- Create Account Form -->
+  <div class="container">
+    <h2 class="text-center mb-4">Create Account</h2>
+    <form method="POST" action="/create-account">
+      <div class="mb-3">
+        <label for="first_name" class="form-label">First Name</label>
+        <input type="text" class="form-control" id="first_name" name="first_name" required>
+      </div>
+      <div class="mb-3">
+        <label for="last_name" class="form-label">Last Name</label>
+        <input type="text" class="form-control" id="last_name" name="last_name" required>
+      </div>
+      <div class="mb-3">
+        <label for="email" class="form-label">Email address</label>
+        <input type="email" class="form-control" id="email" name="email" required>
+      </div>
+      <div class="mb-3">
+        <label for="phone" class="form-label">Phone Number</label>
+        <input type="text" class="form-control" id="phone" name="phone" required>
+      </div>
+      <div class="mb-3">
+        <label for="address" class="form-label">Address</label>
+        <input type="text" class="form-control" id="address" name="address" required>
+      </div>
+      <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <input type="password" class="form-control" id="password" name="password" required>
+      </div>
+      <div class="mb-3">
+        <label for="confirm_password" class="form-label">Confirm Password</label>
+        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+      </div>
+      <button type="submit" class="btn btn-primary w-100">Create Account</button>
+    </form>
+    <p class="text-center mt-3">Already have an account? <a href="/login">Login here</a></p>
+  </div>
 
   <footer class="text-center py-3 bg-white border-top">
     © 2025 Pharmanet. All rights reserved.
   </footer>
-
-  <!-- ✅ Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-  <script>
-    const searchInput = document.getElementById("search-input");
-    const suggestionsBox = document.getElementById("suggestions");
-    const searchBtn = document.getElementById("search-btn");
-
-    // 🔍 Live Suggestions
-    searchInput.addEventListener("input", async () => {
-      const query = searchInput.value.trim();
-      if (!query) {
-        suggestionsBox.innerHTML = "";
-        return;
-      }
-
-      try {
-        const response = await fetch(`/suggest?query=${encodeURIComponent(query)}`);
-        const suggestions = await response.json();
-
-        if (suggestions.length > 0) {
-          suggestionsBox.innerHTML = suggestions
-            .map(s => `<button>${s}</button>`)
-            .join("");
-
-          document.querySelectorAll("#suggestions button").forEach(btn => {
-            btn.addEventListener("click", () => {
-              searchInput.value = btn.textContent;
-              suggestionsBox.innerHTML = "";
-            });
-          });
-        } else {
-          suggestionsBox.innerHTML = "";
-        }
-      } catch (err) {
-        console.error("Error fetching suggestions:", err);
-      }
-    });
-
-    // 🚀 Search Button Redirect
-    searchBtn.addEventListener("click", () => {
-      const query = searchInput.value.trim();
-      if (!query) {
-        alert("Please enter a search term.");
-        return;
-      }
-      window.location.href = `/medicine/${encodeURIComponent(query)}`;
-    });
-  </script>
 </body>
 </html>
+
