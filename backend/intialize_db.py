@@ -1,10 +1,9 @@
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "pharmanet.db")
+DB_PATH = os.path.join(os.path.dirname(__file__), "../pharmanet.db")
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "../static/meds")
 PLACEHOLDER_PATH = "meds/placeholder.jpg"  # ✅ fallback for missing images
-
 
 
 def safe_image(filename):
@@ -28,25 +27,39 @@ def safe_image(filename):
 conn = sqlite3.connect(DB_PATH)
 cur = conn.cursor()
 
+# Drop the existing tables
 cur.execute("DROP TABLE IF EXISTS medicines")
+cur.execute("DROP TABLE IF EXISTS compositions")
 
+# ---------------------------
+# 📝 Create Compositions Table
+# ---------------------------
+cur.execute("""
+CREATE TABLE compositions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    composition TEXT NOT NULL UNIQUE
+)
+""")
+
+# ---------------------------
+# 💊 Create Medicines Table (with composition_id foreign key)
+# ---------------------------
 cur.execute("""
 CREATE TABLE medicines (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    composition TEXT NOT NULL,
     price REAL NOT NULL,
     stock TEXT NOT NULL,
-    image TEXT
+    image TEXT,
+    composition_id INTEGER,
+    FOREIGN KEY (composition_id) REFERENCES compositions(id)
 )
 """)
-
 
 # ---------------------------
 # 🧾 Complete Medicines Dataset
 # ---------------------------
 medicines = [
-
     # 🩹 Acetaminophen / Paracetamol (Pain & Fever)
     ("Tylenol Extra Strength Caplets 50CT", "Acetaminophen 500mg", 9.99, "Available", "tylenol1.jpg"),
     ("Tylenol PM Extra Strength Caplets 24CT", "Acetaminophen 500mg + Diphenhydramine", 8.99, "Available", "tylenol2.jpg"),
@@ -79,16 +92,27 @@ medicines = [
     ("Aller-Tec Tablets 10mg", "Cetirizine 10mg", 6.99, "Available", "allertec.jpg")
 ]
 
-
-cur.execute("DELETE FROM medicines")
-for name, comp, price, stock, image in medicines:
+# Insert unique compositions into `compositions` table
+for name, composition, price, stock, image in medicines:
     safe_img = safe_image(image)
+    # Insert unique compositions (avoid duplicates)
+    cur.execute("INSERT OR IGNORE INTO compositions (composition) VALUES (?)", (composition,))
+
+# Commit to insert the compositions
+conn.commit()
+
+# Now insert data into the medicines table with the corresponding composition_id
+for name, composition, price, stock, image in medicines:
+    # Get the composition_id from the compositions table
+    cur.execute("SELECT id FROM compositions WHERE composition = ?", (composition,))
+    composition_id = cur.fetchone()[0]
+    
     cur.execute(
-        "INSERT INTO medicines (name, composition, price, stock, image) VALUES (?, ?, ?, ?, ?)",
-        (name, comp, price, stock, safe_img)
+        "INSERT INTO medicines (name, price, stock, image, composition_id) VALUES (?, ?, ?, ?, ?)",
+        (name, price, stock, safe_img, composition_id)
     )
 
 conn.commit()
 conn.close()
 
-print("✅ Database initialized successfully with placeholder fallback for missing images!")
+print("✅ Database initialized successfully with normalized tables and placeholder fallback for missing images!")

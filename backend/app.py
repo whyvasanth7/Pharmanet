@@ -21,8 +21,11 @@ def query_db(query, args=(), one=False):
 @app.route("/suggest")
 def suggest():
     query = request.args.get("query", "").lower()
+    # Now, we need to join with the `compositions` table
     results = query_db(
-        "SELECT name FROM medicines WHERE LOWER(name) LIKE ?",
+        "SELECT m.name FROM medicines m "
+        "JOIN compositions c ON m.composition_id = c.id "
+        "WHERE LOWER(m.name) LIKE ?",
         (f"%{query}%",)
     )
     suggestions = [r[0] for r in results]
@@ -34,7 +37,11 @@ def home():
 
 @app.route("/medicines")
 def medicine_list():
-    medicines = query_db("SELECT name, composition, price, stock, image FROM medicines")
+    # Join the `medicines` table with `compositions` to get the composition
+    medicines = query_db(
+        "SELECT m.name, c.composition, m.price, m.stock, m.image FROM medicines m "
+        "JOIN compositions c ON m.composition_id = c.id"
+    )
     return render_template("medicine_list.html", medicines=medicines, query="All Medicines", alternatives=[])
 
 @app.route("/medicine/<name>")
@@ -42,18 +49,20 @@ def medicine_details(name):
     query = name.lower()
 
     medicines = query_db(
-        "SELECT name, composition, price, stock, image FROM medicines WHERE LOWER(name) LIKE ?",
+        "SELECT m.name, c.composition, m.price, m.stock, m.image FROM medicines m "
+        "JOIN compositions c ON m.composition_id = c.id "
+        "WHERE LOWER(m.name) LIKE ?",
         (f"%{query}%",)
     )
 
     if medicines:
         comp = medicines[0][1].lower()
-        main_comp = comp.split()[0]  
-
+        main_comp = comp.split()[0]
 
         alternatives = query_db(
-            "SELECT name, composition, price, stock, image FROM medicines "
-            "WHERE LOWER(composition) LIKE ? AND LOWER(name) NOT LIKE ?",
+            "SELECT m.name, c.composition, m.price, m.stock, m.image FROM medicines m "
+            "JOIN compositions c ON m.composition_id = c.id "
+            "WHERE LOWER(c.composition) LIKE ? AND LOWER(m.name) NOT LIKE ?",
             (f"%{main_comp}%", f"%{query}%")
         )
         if not alternatives:
@@ -67,8 +76,9 @@ def medicine_details(name):
             for k, v in synonyms.items():
                 if k in main_comp:
                     alternatives = query_db(
-                        "SELECT name, composition, price, stock, image FROM medicines "
-                        "WHERE LOWER(composition) LIKE ? AND LOWER(name) NOT LIKE ?",
+                        "SELECT m.name, c.composition, m.price, m.stock, m.image FROM medicines m "
+                        "JOIN compositions c ON m.composition_id = c.id "
+                        "WHERE LOWER(c.composition) LIKE ? AND LOWER(m.name) NOT LIKE ?",
                         (f"%{v}%", f"%{query}%")
                     )
                     break
