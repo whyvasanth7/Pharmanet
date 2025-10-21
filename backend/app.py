@@ -2,9 +2,6 @@ from flask import Flask, render_template, request, jsonify, url_for
 import sqlite3
 import os
 
-# ---------------------------------------
-# Flask configuration
-# ---------------------------------------
 app = Flask(
     __name__,
     template_folder="../templates",
@@ -13,10 +10,6 @@ app = Flask(
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "pharmanet.db")
 
-
-# ---------------------------------------
-# Database helper
-# ---------------------------------------
 def query_db(query, args=(), one=False):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -25,10 +18,6 @@ def query_db(query, args=(), one=False):
     conn.close()
     return (rows[0] if rows else None) if one else rows
 
-
-# ---------------------------------------
-# Suggestion API for live search
-# ---------------------------------------
 @app.route("/suggest")
 def suggest():
     query = request.args.get("query", "").lower()
@@ -39,43 +28,29 @@ def suggest():
     suggestions = [r[0] for r in results]
     return jsonify(suggestions)
 
-
-# ---------------------------------------
-# Homepage
-# ---------------------------------------
 @app.route("/")
 def home():
     return render_template("index.html")
 
-
-# ---------------------------------------
-# Medicine list (optional view)
-# ---------------------------------------
 @app.route("/medicines")
 def medicine_list():
     medicines = query_db("SELECT name, composition, price, stock, image FROM medicines")
     return render_template("medicine_list.html", medicines=medicines, query="All Medicines", alternatives=[])
 
-
-# ---------------------------------------
-# Medicine search & alternatives
-# ---------------------------------------
 @app.route("/medicine/<name>")
 def medicine_details(name):
     query = name.lower()
 
-    # ✅ Get all medicines matching the search term
     medicines = query_db(
         "SELECT name, composition, price, stock, image FROM medicines WHERE LOWER(name) LIKE ?",
         (f"%{query}%",)
     )
 
-    # ✅ Find alternatives based on main composition (broader match)
     if medicines:
         comp = medicines[0][1].lower()
         main_comp = comp.split()[0]  # e.g. "ibuprofen" from "ibuprofen 400mg"
 
-        # Fetch alternatives with same main compound (not the same name)
+
         alternatives = query_db(
             "SELECT name, composition, price, stock, image FROM medicines "
             "WHERE LOWER(composition) LIKE ? AND LOWER(name) NOT LIKE ?",
@@ -111,8 +86,5 @@ def medicine_details(name):
     )
 
 
-# ---------------------------------------
-# Run Flask
-# ---------------------------------------
 if __name__ == "__main__":
     app.run(debug=True)
