@@ -1,17 +1,12 @@
 import sqlite3
 import os
 
-# ---------------------------
-# ⚙️ Database path setup
-# ---------------------------
 DB_PATH = os.path.join(os.path.dirname(__file__), "pharmanet.db")
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "../static/meds")
 PLACEHOLDER_PATH = "meds/placeholder.jpg"  # ✅ fallback for missing images
 
 
-# ---------------------------
-# 🧩 Helper: validate image exists
-# ---------------------------
+
 def safe_image(filename):
     """
     Ensures valid image path for each medicine.

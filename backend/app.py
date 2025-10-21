@@ -48,7 +48,7 @@ def medicine_details(name):
 
     if medicines:
         comp = medicines[0][1].lower()
-        main_comp = comp.split()[0]  # e.g. "ibuprofen" from "ibuprofen 400mg"
+        main_comp = comp.split()[0]  
 
 
         alternatives = query_db(
@@ -56,9 +56,6 @@ def medicine_details(name):
             "WHERE LOWER(composition) LIKE ? AND LOWER(name) NOT LIKE ?",
             (f"%{main_comp}%", f"%{query}%")
         )
-
-        # Additional rule: link common substitutes manually
-        # e.g. paracetamol ↔ acetaminophen, amoxicillin ↔ augmentin
         if not alternatives:
             synonyms = {
                 "acetaminophen": "paracetamol",
