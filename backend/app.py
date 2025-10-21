@@ -21,7 +21,6 @@ def query_db(query, args=(), one=False):
 @app.route("/suggest")
 def suggest():
     query = request.args.get("query", "").lower()
-    # Now, we need to join with the `compositions` table
     results = query_db(
         "SELECT m.name FROM medicines m "
         "JOIN compositions c ON m.composition_id = c.id "
@@ -37,9 +36,10 @@ def home():
 
 @app.route("/medicines")
 def medicine_list():
-    # Join the `medicines` table with `compositions` to get the composition
+    # Correct the query to select medicines and their compositions
     medicines = query_db(
-        "SELECT m.name, c.composition, m.price, m.stock, m.image FROM medicines m "
+        "SELECT m.name, c.composition, m.price, m.stock, "
+        "IFNULL(m.image, 'meds/placeholder.jpg') FROM medicines m "
         "JOIN compositions c ON m.composition_id = c.id"
     )
     return render_template("medicine_list.html", medicines=medicines, query="All Medicines", alternatives=[])
@@ -48,8 +48,10 @@ def medicine_list():
 def medicine_details(name):
     query = name.lower()
 
+    # Query for the specific medicine
     medicines = query_db(
-        "SELECT m.name, c.composition, m.price, m.stock, m.image FROM medicines m "
+        "SELECT m.name, c.composition, m.price, m.stock, "
+        "IFNULL(m.image, 'meds/placeholder.jpg') FROM medicines m "
         "JOIN compositions c ON m.composition_id = c.id "
         "WHERE LOWER(m.name) LIKE ?",
         (f"%{query}%",)
@@ -57,14 +59,18 @@ def medicine_details(name):
 
     if medicines:
         comp = medicines[0][1].lower()
-        main_comp = comp.split()[0]
+        main_comp = comp.split()[0]  # Get the main composition (first word)
 
+        # Query for alternatives, making sure alternatives without images use the placeholder
         alternatives = query_db(
-            "SELECT m.name, c.composition, m.price, m.stock, m.image FROM medicines m "
+            "SELECT m.name, c.composition, m.price, m.stock, "
+            "IFNULL(m.image, 'meds/placeholder.jpg') FROM medicines m "
             "JOIN compositions c ON m.composition_id = c.id "
             "WHERE LOWER(c.composition) LIKE ? AND LOWER(m.name) NOT LIKE ?",
             (f"%{main_comp}%", f"%{query}%")
         )
+
+        # If no alternatives found, check synonyms (for example: acetaminophen -> paracetamol)
         if not alternatives:
             synonyms = {
                 "acetaminophen": "paracetamol",
@@ -76,7 +82,8 @@ def medicine_details(name):
             for k, v in synonyms.items():
                 if k in main_comp:
                     alternatives = query_db(
-                        "SELECT m.name, c.composition, m.price, m.stock, m.image FROM medicines m "
+                        "SELECT m.name, c.composition, m.price, m.stock, "
+                        "IFNULL(m.image, 'meds/placeholder.jpg') FROM medicines m "
                         "JOIN compositions c ON m.composition_id = c.id "
                         "WHERE LOWER(c.composition) LIKE ? AND LOWER(m.name) NOT LIKE ?",
                         (f"%{v}%", f"%{query}%")
