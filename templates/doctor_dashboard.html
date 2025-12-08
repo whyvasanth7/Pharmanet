@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Doctor Dashboard – Pharmanet</title>
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      background-color: #f8f9fa;
+    }
+
+    .parallax {
+      background-image: url("{{ url_for('static', filename='pharmacy.jpg') }}");
+      min-height: 100vh;
+      background-attachment: fixed;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: cover;
+    }
+
+    .overlay {
+      background-color: rgba(255, 255, 255, 0.85);
+      min-height: 100vh;
+      padding-bottom: 50px;
+    }
+
+    .navbar {
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      z-index: 10;
+      position: sticky;
+      top: 0;
+    }
+
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+      font-size: 1.4rem;
+      color: #4a5c8a;
+      text-decoration: none;
+    }
+
+    .navbar-brand span {
+      font-style: italic;
+    }
+
+    .card-header {
+      background-color: #f8f9ff;
+      font-weight: 500;
+    }
+
+    .badge-status {
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+    }
+
+    .badge-pending {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+
+    .badge-approved {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .badge-rejected {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+  </style>
+</head>
+<body>
+
+<section class="parallax">
+  <div class="overlay">
+
+    <!-- Navbar -->
+    <header class="navbar navbar-light">
+      <div class="container d-flex justify-content-between align-items-center py-2 position-relative">
+        <a href="{{ url_for('doctor_dashboard') }}" class="navbar-brand">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#4a5c8a" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="2"/>
+            <path d="M12 2v5M12 17v5M4.22 4.22l3.54 3.54M16.24 16.24l3.54 3.54M2 12h5M17 12h5M4.22 19.78l3.54-3.54M16.24 7.76l3.54-3.54"
+                  stroke="#4a5c8a" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span>Pharmanet</span>
+        </a>
+
+        <a href="{{ url_for('doctor_logout') }}" class="btn btn-outline-danger btn-sm">
+          Logout
+        </a>
+      </div>
+    </header>
+
+    <div class="container py-4">
+
+      <!-- Doctor info -->
+      <div class="card mb-4">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <h4 class="mb-1">{{ doctor_name or "Doctor" }}</h4>
+            <div class="text-muted">
+              {{ specialization or "" }} · {{ degree or "" }}
+            </div>
+          </div>
+          <div class="text-muted small">
+            Total appointments: {{ appointments|length }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Appointments -->
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Your Appointments</span>
+          <span class="text-muted small">Total: {{ appointments|length }}</span>
+        </div>
+
+        {% if not appointments %}
+          <div class="card-body">
+            <p class="text-muted mb-0">You don’t have any appointments yet.</p>
+          </div>
+        {% else %}
+          <div class="table-responsive">
+            <table class="table mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 60px;">#</th>
+                  <th>Patient</th>
+                  <th>Contact</th>
+                  <th>Description</th>
+                  <th>Status</th>
+                  <th>Created At</th>
+                  <th>Prescription</th>
+                  <th style="width: 180px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for appt in appointments %}
+                <tr>
+                  <!-- appt[0] = appointment id -->
+                  <td>{{ appt[0] }}</td>
+
+                  <!-- appt[1] = patient_name -->
+                  <td>{{ appt[1] }}</td>
+
+                  <!-- appt[2] = email, appt[3] = phone -->
+                  <td>
+                    <div>{{ appt[2] }}</div>
+                    <div class="text-muted small">{{ appt[3] }}</div>
+                  </td>
+
+                  <!-- appt[4] = description/symptoms -->
+                  <td>{{ appt[4] }}</td>
+
+                  <!-- appt[5] = status -->
+                  <td>
+                    {% set status = appt[5] %}
+                    {% if status == 'Approved' %}
+                      <span class="badge-status badge-approved">Approved</span>
+                    {% elif status == 'Rejected' %}
+                      <span class="badge-status badge-rejected">Rejected</span>
+                    {% else %}
+                      <span class="badge-status badge-pending">Pending</span>
+                    {% endif %}
+                  </td>
+
+                  <!-- appt[6] = created_at -->
+                  <td>{{ appt[6] }}</td>
+
+                  <!-- Prescription column -->
+                  <td>
+                    {% if appt[5] == 'Approved' %}
+                      <button
+                        type="button"
+                        class="btn btn-primary btn-sm btn-create-prescription"
+                        data-bs-toggle="modal"
+                        data-bs-target="#prescriptionModal"
+                        data-appt-id="{{ appt[0] }}"
+                        data-patient-name="{{ appt[1] }}">
+                        Create Prescription
+                      </button>
+                    {% else %}
+                      <span class="text-muted small">Approve first</span>
+                    {% endif %}
+                  </td>
+
+                  <!-- Actions -->
+                  <td>
+                    <form method="POST"
+                          action="{{ url_for('update_appointment_status') }}"
+                          class="d-inline">
+                      <input type="hidden" name="appointment_id" value="{{ appt[0] }}">
+                      <input type="hidden" name="status" value="Approved">
+                      <button type="submit"
+                              class="btn btn-success btn-sm"
+                              {% if appt[5] == 'Approved' %}disabled{% endif %}>
+                        Approve
+                      </button>
+                    </form>
+
+                    <form method="POST"
+                          action="{{ url_for('update_appointment_status') }}"
+                          class="d-inline ms-1">
+                      <input type="hidden" name="appointment_id" value="{{ appt[0] }}">
+                      <input type="hidden" name="status" value="Rejected">
+                      <button type="submit"
+                              class="btn btn-danger btn-sm"
+                              {% if appt[5] == 'Rejected' %}disabled{% endif %}>
+                        Reject
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="text-center text-muted small mt-3">
+        © 2025 Pharmanet. All rights reserved.
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ✅ Prescription Modal -->
+<div class="modal fade" id="prescriptionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('create_prescription') }}">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            Create Prescription for <span id="modalPatientName"></span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"
+                  aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Hidden: which appointment is this for -->
+          <input type="hidden" name="appointment_id" id="modalAppointmentId">
+
+          <div class="mb-3">
+            <label class="form-label">Diagnosis / Notes</label>
+            <textarea class="form-control"
+                      name="diagnosis"
+                      rows="3"
+                      placeholder="Example: Viral fever, rule out infection..."
+                      required></textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Course Duration</label>
+            <input type="text"
+                   class="form-control"
+                   name="course_duration"
+                   placeholder="e.g., 5 days, 2 weeks"
+                   required>
+          </div>
+
+          <hr>
+
+          <h6>Medicines</h6>
+          <p class="text-muted small mb-2">
+            Add one or more medicines with dosage and frequency.
+          </p>
+
+          <div id="medicines-container">
+            <!-- one default row -->
+            <div class="row g-2 align-items-end medicine-row mb-2">
+              <div class="col-md-5">
+                <label class="form-label">Medicine</label>
+                <select name="medicine_id[]" class="form-select" required>
+                  <option value="">Select medicine</option>
+                  {% for m in medicines %}
+                    <option value="{{ m[0] }}">{{ m[1] }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Dosage</label>
+                <input type="text"
+                       name="dosage[]"
+                       class="form-control"
+                       placeholder="e.g., 500 mg"
+                       required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Frequency</label>
+                <input type="text"
+                       name="frequency[]"
+                       class="form-control"
+                       placeholder="e.g., 2x daily"
+                       required>
+              </div>
+            </div>
+          </div>
+
+          <button type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  id="addMedicineRow">
+            + Add another medicine
+          </button>
+
+        </div>
+
+        <div class="modal-footer">
+          <button type="button"
+                  class="btn btn-outline-secondary"
+                  data-bs-dismiss="modal">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-primary">
+            Save Prescription
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // Modal: fill appointment + patient info when "Create Prescription" is clicked
+  const prescriptionModalEl = document.getElementById('prescriptionModal');
+  const modalAppointmentId = document.getElementById('modalAppointmentId');
+  const modalPatientName = document.getElementById('modalPatientName');
+
+  document.querySelectorAll('.btn-create-prescription').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const apptId = btn.getAttribute('data-appt-id');
+      const patientName = btn.getAttribute('data-patient-name');
+
+      modalAppointmentId.value = apptId;
+      modalPatientName.textContent = patientName;
+    });
+  });
+
+  // Add more medicine rows
+  const addMedicineBtn = document.getElementById('addMedicineRow');
+  const medsContainer = document.getElementById('medicines-container');
+
+  if (addMedicineBtn && medsContainer) {
+    addMedicineBtn.addEventListener('click', () => {
+      const firstRow = medsContainer.querySelector('.medicine-row');
+      if (!firstRow) return;
+
+      const newRow = firstRow.cloneNode(true);
+
+      // Clear values
+      newRow.querySelectorAll('select, input').forEach(el => {
+        el.value = '';
+      });
+
+      medsContainer.appendChild(newRow);
+    });
+  }
+</script>
+
+</body>
+</html>

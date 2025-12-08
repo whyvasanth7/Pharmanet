@@ -27,10 +27,13 @@ def safe_image(filename):
 conn = sqlite3.connect(DB_PATH)
 cur = conn.cursor()
 
-# Drop the existing tables
+# Drop the existing tables (drop children before parents)
+cur.execute("DROP TABLE IF EXISTS Appointments")
 cur.execute("DROP TABLE IF EXISTS medicines")
 cur.execute("DROP TABLE IF EXISTS compositions")
-cur.execute("DROP TABLE IF EXISTS User")  # Adding this line to ensure the User table is created.
+cur.execute("DROP TABLE IF EXISTS Doctor")
+cur.execute("DROP TABLE IF EXISTS User")  # user table
+
 
 # ---------------------------
 # 🧑‍💻 Create User Table (for user authentication)
@@ -46,6 +49,31 @@ CREATE TABLE IF NOT EXISTS User (
     Password TEXT NOT NULL
 )
 """)
+
+# ---------------------------
+# 🩺 Create Doctor Table
+# ---------------------------
+cur.execute("""
+CREATE TABLE IF NOT EXISTS Doctor (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Name TEXT NOT NULL,
+    Speciality TEXT NOT NULL,
+    Degree TEXT,
+    Email TEXT,
+    Phone TEXT
+)
+""")
+
+# Insert sample doctors (matching the UI names)
+cur.executemany("""
+INSERT INTO Doctor (Name, Speciality, Degree, Email, Phone)
+VALUES (?, ?, ?, ?, ?)
+""", [
+    ("Dr Ben",   "Neurology",     "MBBS",                  None, None),
+    ("Dr Why",   "Cardiologist",  "FFFF Sex Specialist",   None, None),
+    ("Dr Paamu", "Psychiatrist",  "M.D., D.O.",            None, None),
+    ("Dr Komal", "Gynecologist",  "XYZ Degree",            None, None),
+])
 
 # ---------------------------
 # 📝 Create Compositions Table
@@ -69,6 +97,22 @@ CREATE TABLE medicines (
     image TEXT,
     composition_id INTEGER,
     FOREIGN KEY (composition_id) REFERENCES compositions(id)
+)
+""")
+
+# ---------------------------
+# 📅 Create Appointments Table
+# ---------------------------
+cur.execute("""
+CREATE TABLE Appointments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    doctor_id INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Pending',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES User(id),
+    FOREIGN KEY (doctor_id) REFERENCES Doctor(id)
 )
 """)
 
@@ -122,13 +166,68 @@ for name, composition, price, stock, image in medicines:
     # Get the composition_id from the compositions table
     cur.execute("SELECT id FROM compositions WHERE composition = ?", (composition,))
     composition_id = cur.fetchone()[0]
-    
+
     cur.execute(
         "INSERT INTO medicines (name, price, stock, image, composition_id) VALUES (?, ?, ?, ?, ?)",
-        (name, price, stock, safe_img, composition_id)
+        (name, price, stock, safe_image(image), composition_id)
     )
 
 conn.commit()
 conn.close()
 
-print("✅ Database initialized successfully with normalized tables and placeholder fallback for missing images!")
+print("✅ Database initialized successfully with users, doctors, medicines, and appointments tables!")
+
+import sqlite3
+import os
+
+DB_PATH = os.path.join(os.path.dirname(__file__), "pharmanet.db")
+
+conn = sqlite3.connect(DB_PATH)
+cur = conn.cursor()
+
+# 👉 1) Prescriptions: one record per prescription (user + doctor)
+cur.execute("""
+CREATE TABLE IF NOT EXISTS Prescriptions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL,
+    doctor_id   INTEGER NOT NULL,
+    start_date  TEXT,
+    end_date    TEXT,
+    notes       TEXT,
+    status      TEXT NOT NULL DEFAULT 'Active',
+    FOREIGN KEY (user_id)   REFERENCES User(id),
+    FOREIGN KEY (doctor_id) REFERENCES Doctor(id)
+);
+""")
+
+# 👉 2) PrescriptionMedicines: each medicine inside a prescription
+cur.execute("""
+CREATE TABLE IF NOT EXISTS PrescriptionMedicines (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    prescription_id  INTEGER NOT NULL,
+    medicine_id      INTEGER NOT NULL,
+    dosage           TEXT,
+    frequency        TEXT,
+    duration_days    INTEGER,
+    FOREIGN KEY (prescription_id) REFERENCES Prescriptions(id),
+    FOREIGN KEY (medicine_id)     REFERENCES medicines(id)
+);
+""")
+
+# 👉 3) DrugInteractions: dangerous / allergy combinations
+cur.execute("""
+CREATE TABLE IF NOT EXISTS DrugInteractions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    medicine_id_1   INTEGER NOT NULL,
+    medicine_id_2   INTEGER NOT NULL,
+    severity        TEXT NOT NULL,        -- e.g. 'Low' / 'Moderate' / 'High'
+    warning_message TEXT NOT NULL,
+    FOREIGN KEY (medicine_id_1) REFERENCES medicines(id),
+    FOREIGN KEY (medicine_id_2) REFERENCES medicines(id)
+);
+""")
+
+conn.commit()
+conn.close()
+
+print("✅ Tables Prescriptions, PrescriptionMedicines, and DrugInteractions are ready!")

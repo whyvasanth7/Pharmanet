@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Book Appointment – Pharmanet</title>
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      background-color: #f8f9fa;
+    }
+
+    /* Parallax background (same as other pages) */
+    .parallax {
+      background-image: url("{{ url_for('static', filename='pharmacy.jpg') }}");
+      min-height: 100vh;
+      background-attachment: fixed;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: cover;
+    }
+
+    .overlay {
+      background-color: rgba(255, 255, 255, 0.8);
+      min-height: 100vh;
+      padding-bottom: 50px;
+    }
+
+    /* Navbar */
+    .navbar {
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      z-index: 10;
+      position: sticky;
+      top: 0;
+    }
+
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+      font-size: 1.4rem;
+      color: #4a5c8a;
+      text-decoration: none;
+    }
+
+    .navbar-brand span {
+      font-style: italic;
+      transition: color 0.3s ease;
+    }
+
+    .navbar-brand:hover span {
+      color: #3b4f78;
+    }
+
+    .doctor-card {
+      background: #fff;
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      text-align: center;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .doctor-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.10);
+    }
+
+    .doctor-photo {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid #4a5c8a;
+      margin-bottom: 10px;
+    }
+
+    .doctor-name {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+
+    .doctor-speciality {
+      color: #2a9d8f;
+      font-size: 0.95rem;
+      margin-bottom: 3px;
+    }
+
+    .doctor-degree {
+      color: #777;
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+    }
+
+    .btn-primary {
+      background-color: #4a5c8a;
+      border: none;
+    }
+
+    .btn-primary:hover {
+      background-color: #3a4d75;
+    }
+  </style>
+</head>
+
+<body>
+
+<section class="parallax">
+  <div class="overlay">
+
+    <!-- Navbar -->
+    <header class="navbar navbar-light">
+      <div class="container d-flex justify-content-between align-items-center py-2 position-relative">
+        <a href="/dashboard" class="navbar-brand">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#4a5c8a" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="2"/>
+            <path d="M12 2v5M12 17v5M4.22 4.22l3.54 3.54M16.24 16.24l3.54 3.54M2 12h5M17 12h5M4.22 19.78l3.54-3.54M16.24 7.76l3.54-3.54"
+                  stroke="#4a5c8a" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span>Pharmanet</span>
+        </a>
+
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary">
+          Back to Dashboard
+        </a>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="container py-5">
+      <h2 class="text-center mb-2">Available Doctors</h2>
+      <p class="text-center text-muted mb-5">
+        Choose a doctor and briefly describe what you are feeling to confirm your appointment.
+      </p>
+
+      <div class="row g-4 justify-content-center">
+
+        <!-- Dr Ben -->
+        <div class="col-md-3">
+          <div class="doctor-card">
+            <img src="{{ url_for('static', filename='doctors/ben.jpeg') }}" alt="Dr Ben" class="doctor-photo">
+            <div class="doctor-name">Dr Ben</div>
+            <div class="doctor-speciality">Neurology</div>
+            <div class="doctor-degree">MBBS</div>
+            <button
+              type="button"
+              class="btn btn-primary w-100 book-btn"
+              data-doctor-id="5"
+              data-doctor-name="Dr Ben">
+              Book with Dr Ben
+            </button>
+          </div>
+        </div>
+
+        <!-- Dr Why -->
+        <div class="col-md-3">
+          <div class="doctor-card">
+            <img src="{{ url_for('static', filename='doctors/why.jpeg') }}" alt="Dr Why" class="doctor-photo">
+            <div class="doctor-name">Dr Why</div>
+            <div class="doctor-speciality">Cardiologist</div>
+            <div class="doctor-degree">FFFF Sex Specialist</div>
+            <button
+              type="button"
+              class="btn btn-primary w-100 book-btn"
+              data-doctor-id="6"
+              data-doctor-name="Dr Why">
+              Book with Dr Why
+            </button>
+          </div>
+        </div>
+
+        <!-- Dr Paamu -->
+        <div class="col-md-3">
+          <div class="doctor-card">
+            <img src="{{ url_for('static', filename='doctors/paamu.jpeg') }}" alt="Dr Paamu" class="doctor-photo">
+            <div class="doctor-name">Dr Paamu</div>
+            <div class="doctor-speciality">Psychiatrist</div>
+            <div class="doctor-degree">M.D., D.O.</div>
+            <button
+              type="button"
+              class="btn btn-primary w-100 book-btn"
+              data-doctor-id="7"
+              data-doctor-name="Dr Paamu">
+              Book with Dr Paamu
+            </button>
+          </div>
+        </div>
+
+        <!-- Dr Komal -->
+        <div class="col-md-3">
+          <div class="doctor-card">
+            <img src="{{ url_for('static', filename='doctors/komal.jpeg') }}" alt="Dr Komal" class="doctor-photo">
+            <div class="doctor-name">Dr Komal</div>
+            <div class="doctor-speciality">Gynecologist</div>
+            <div class="doctor-degree">XYZ Degree</div>
+            <button
+              type="button"
+              class="btn btn-primary w-100 book-btn"
+              data-doctor-id="8"
+              data-doctor-name="Dr Komal">
+              Book with Dr Komal
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Appointment Modal -->
+<div class="modal fade" id="appointmentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          Book appointment with <span id="doctorNameInModal"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <!-- ✅ POST back to book_appointment route -->
+      <form method="POST" action="{{ url_for('book_appointment') }}">
+        <div class="modal-body">
+          <p class="mb-2">
+            Please describe what you are feeling or any symptoms you have.
+          </p>
+          <textarea
+            class="form-control"
+            name="symptoms"
+            rows="5"
+            placeholder="Example: Fever since 3 days, headache, body pain..."
+            required></textarea>
+
+          <!-- Hidden field to know which doctor was chosen -->
+          <input type="hidden" name="doctor_id" id="doctorIdInput">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-primary">
+            Confirm Appointment
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // When user clicks "Book with Dr X", open modal and fill doctor details
+  const appointmentModal = new bootstrap.Modal(document.getElementById('appointmentModal'));
+  const doctorNameSpan = document.getElementById('doctorNameInModal');
+  const doctorIdInput = document.getElementById('doctorIdInput');
+
+  document.querySelectorAll('.book-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const doctorName = btn.getAttribute('data-doctor-name');
+      const doctorId = btn.getAttribute('data-doctor-id');
+
+      doctorNameSpan.textContent = doctorName;
+      doctorIdInput.value = doctorId;
+
+      appointmentModal.show();
+    });
+  });
+</script>
+
+</body>
+</html>
