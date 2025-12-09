@@ -58,46 +58,54 @@
   <nav class="navbar navbar-light">
     <div class="container-fluid px-4 d-flex justify-content-between align-items-center py-3">
       
+      <!-- Brand -->
       <a href="/" class="navbar-brand d-flex align-items-center">
         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#4a5c8a" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="2"/>
           <path d="M12 2v5M12 17v5M4.22 4.22l3.54 3.54M16.24 16.24l3.54 3.54M2 12h5M17 12h5M4.22 19.78l3.54-3.54M16.24 7.76l3.54-3.54"
                 stroke="#4a5c8a" stroke-width="2" stroke-linecap="round"/>
         </svg>
-        <span class="ms-2" style="font-weight:600; font-size:1.4rem; color:#4a5c8a; font-style:italic;">Pharmanet</span>
+        <span class="ms-2" style="font-weight:600; font-size:1.4rem; color:#4a5c8a; font-style:italic;">
+          Pharmanet
+        </span>
       </a>
 
-      <form action="/search" method="get" class="d-flex">
-        <input type="text" name="query" value="{{ query }}" class="form-control me-2" placeholder="Search again...">
-        <button type="submit" class="btn btn-outline-primary">Search</button>
-      </form>
+      <!-- Search + Cart -->
+      <div class="d-flex align-items-center">
+        <form action="/search" method="get" class="d-flex">
+          <input type="text" name="query" value="{{ query }}" class="form-control me-2" placeholder="Search again...">
+          <button type="submit" class="btn btn-outline-primary">Search</button>
+        </form>
+
+        {% if session.get('user_id') %}
+        <a href="{{ url_for('view_cart') }}" class="btn btn-outline-secondary ms-3">
+          🛒 Cart
+        </a>
+        {% endif %}
+      </div>
 
     </div>
   </nav>
 
-  <div class="container py-5">
-    <h3 class="mb-4 text-center text-secondary">
-      Showing results for "<strong>{{ query }}</strong>"
-    </h3>
+  <div class="container py-4">
 
-    {# 🔴 HIGH-SEVERITY DRUG INTERACTION WARNING (if any) #}
+    <!-- Drug interaction warning (if any) -->
     {% if interaction_warning %}
-      <div class="alert alert-danger d-flex align-items-start gap-2 mt-3">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor"
-             class="bi bi-exclamation-triangle-fill flex-shrink-0" viewBox="0 0 16 16">
-          <path d="M8 0c-.69 0-1.318.373-1.651.98L.165 13.02a1.9 1.9 0 0 0-.165.79C0 15.04.96 16 2.145 16h11.71C15.04 16 16 15.04 16 13.81a1.9 1.9 0 0 0-.165-.79L9.651.98A1.85 1.85 0 0 0 8 0z"/>
-          <path d="M7.002 4h2v5h-2zm0 7h2v2h-2z"/>
-        </svg>
+      <div class="alert alert-danger d-flex align-items-start" role="alert">
         <div>
-          <h6 class="mb-1">⚠ Drug Interaction Warning</h6>
-          <div>
-            <strong>Interacts with:</strong> {{ interaction_warning.with_medicine }} <br>
-            <strong>Severity:</strong> {{ interaction_warning.severity }} <br>
-            
-          </div>
+          <strong>⚠ Drug Interaction Warning:</strong><br>
+          This medicine may have a <strong>{{ interaction_warning.severity }}</strong> interaction
+          with <strong>{{ interaction_warning.with_medicine }}</strong> in your current prescription.
+          {% if interaction_warning.message %}
+            <br>{{ interaction_warning.message }}
+          {% endif %}
         </div>
       </div>
     {% endif %}
+
+    <h3 class="mb-4 text-center text-secondary">
+      Showing results for "<strong>{{ query }}</strong>"
+    </h3>
 
     {% if medicines %}
       <div class="row g-4">
@@ -110,7 +118,22 @@
             <p class="{% if med[3] == 'Available' %}text-success{% else %}text-danger{% endif %}">
               {{ med[3] }}
             </p>
-            <button class="btn btn-sm btn-primary w-100">Add to Cart</button>
+
+            {% if session.get('user_id') %}
+            <!-- Add to Cart form -->
+            <form action="{{ url_for('add_to_cart') }}" method="post" class="mt-2">
+              <!-- using medicine_name so backend can resolve id -->
+              <input type="hidden" name="medicine_name" value="{{ med[0] }}">
+              <input type="hidden" name="quantity" value="1">
+              <button type="submit" class="btn btn-sm btn-primary w-100">
+                Add to Cart
+              </button>
+            </form>
+            {% else %}
+              <a href="{{ url_for('login') }}" class="btn btn-sm btn-outline-primary w-100 mt-2">
+                Login to add to cart
+              </a>
+            {% endif %}
           </div>
         </div>
         {% endfor %}
@@ -132,7 +155,20 @@
             <p class="{% if alt[3] == 'Available' %}text-success{% else %}text-danger{% endif %}">
               {{ alt[3] }}
             </p>
-            <button class="btn btn-sm btn-outline-primary w-100">Compare</button>
+
+            {% if session.get('user_id') %}
+            <form action="{{ url_for('add_to_cart') }}" method="post" class="mt-2">
+              <input type="hidden" name="medicine_name" value="{{ alt[0] }}">
+              <input type="hidden" name="quantity" value="1">
+              <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                Add to Cart
+              </button>
+            </form>
+            {% else %}
+              <a href="{{ url_for('login') }}" class="btn btn-sm btn-outline-primary w-100 mt-2">
+                Login to add to cart
+              </a>
+            {% endif %}
           </div>
         </div>
         {% endfor %}

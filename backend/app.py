@@ -4,6 +4,7 @@ import os
 import re
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
+from urllib.parse import urlparse
 
 app = Flask(
     __name__,
@@ -234,6 +235,337 @@ def medicine_details(name):
     )
 
 
+# ----------------------- CART & ORDERS -----------------------
+@app.route("/cart/add", methods=["POST"])
+def add_to_cart():
+    """
+    Add a medicine to the logged-in user's cart.
+
+    It tries to get the medicine key from several possible fields:
+    - medicine_id   (id or name)
+    - medicine_name
+    - name
+    - medicine
+    If none of those exist, it will try to infer the medicine name
+    from the referrer URL, e.g. /medicine/tylenol.
+    """
+    if "user_id" not in session:
+        flash("Please log in to add items to your cart.", "danger")
+        return redirect(url_for("login"))
+
+    # Try multiple field names from the form
+    raw_key = (
+        request.form.get("medicine_id")
+        or request.form.get("medicine_name")
+        or request.form.get("name")
+        or request.form.get("medicine")
+        or ""
+    ).strip()
+
+    # If still empty, try to pull from referrer URL like /medicine/tylenol
+    if not raw_key and request.referrer:
+        path = urlparse(request.referrer).path  # e.g. "/medicine/tylenol"
+        parts = path.rstrip("/").split("/")
+        if len(parts) >= 3 and parts[-2].lower() == "medicine":
+            raw_key = parts[-1]
+
+    quantity_str = request.form.get("quantity", "1")
+
+    if not raw_key:
+        flash("Invalid medicine selection.", "danger")
+        return redirect(request.referrer or url_for("medicine_list"))
+
+    # Resolve to numeric medicine_id
+    if raw_key.isdigit():
+        med_row = query_db(
+            "SELECT id FROM medicines WHERE id = ?",
+            (raw_key,),
+            one=True
+        )
+    else:
+        # IMPORTANT CHANGE: use LIKE instead of exact match
+        med_row = query_db(
+            "SELECT id FROM medicines WHERE LOWER(name) LIKE ?",
+            (f"%{raw_key.lower()}%",),
+            one=True
+        )
+
+    if not med_row:
+        flash("Selected medicine not found in database.", "danger")
+        return redirect(request.referrer or url_for("medicine_list"))
+
+    medicine_id = med_row[0]
+
+    # Quantity validation
+    try:
+        quantity = int(quantity_str)
+    except ValueError:
+        quantity = 1
+    if quantity <= 0:
+        quantity = 1
+
+    # If user already has this medicine in cart, just bump quantity
+    existing = query_db(
+        "SELECT id, quantity FROM CartItems WHERE user_id = ? AND medicine_id = ?",
+        (session["user_id"], medicine_id),
+        one=True
+    )
+
+    if existing:
+        cart_id, old_qty = existing
+        query_db(
+            "UPDATE CartItems SET quantity = ? WHERE id = ?",
+            (old_qty + quantity, cart_id)
+        )
+    else:
+        query_db(
+            "INSERT INTO CartItems (user_id, medicine_id, quantity) VALUES (?, ?, ?)",
+            (session['user_id'], medicine_id, quantity)
+        )
+
+    flash("Item added to cart.", "success")
+    # Stay on the page where the user clicked "Add to Cart"
+    return redirect(request.referrer or url_for("medicine_list"))
+
+
+@app.route("/cart")
+def view_cart():
+    """
+    Show the current user's cart contents and total.
+    """
+    if "user_id" not in session:
+        flash("Please log in to view your cart.", "danger")
+        return redirect(url_for("login"))
+
+    rows = query_db(
+        """
+        SELECT
+            CI.id,
+            CI.medicine_id,
+            CI.quantity,
+            M.name,
+            M.price,
+            IFNULL(M.image, 'meds/placeholder.jpg')
+        FROM CartItems CI
+        JOIN medicines M ON CI.medicine_id = M.id
+        WHERE CI.user_id = ?
+        """,
+        (session["user_id"],)
+    )
+
+    cart_items = []
+    total_amount = 0.0
+
+    for row in rows:
+        cart_id, med_id, qty, name, price, image = row
+        line_total = (price or 0) * qty
+        total_amount += line_total
+        cart_items.append({
+            "cart_id": cart_id,
+            "medicine_id": med_id,
+            "name": name,
+            "quantity": qty,
+            "price": price,
+            "image": image,
+            "line_total": line_total,
+        })
+
+    return render_template(
+        "cart.html",
+        cart_items=cart_items,
+        total_amount=total_amount
+    )
+
+
+@app.route("/checkout", methods=["GET", "POST"])
+def checkout():
+    if "user_id" not in session:
+        flash("Please log in first.", "danger")
+        return redirect(url_for("login"))
+
+    # Load cart items
+    cart_rows = query_db(
+        """
+        SELECT
+            CI.id,
+            CI.medicine_id,
+            CI.quantity,
+            M.name,
+            M.price
+        FROM CartItems CI
+        JOIN medicines M ON CI.medicine_id = M.id
+        WHERE CI.user_id = ?
+        """,
+        (session["user_id"],)
+    )
+
+    if request.method == "GET":
+        if not cart_rows:
+            flash("Your cart is empty.", "warning")
+            return redirect(url_for("view_cart"))
+
+        total_amount = 0.0
+        display_items = []
+        for row in cart_rows:
+            _, med_id, qty, name, price = row
+            line_total = (price or 0) * qty
+            total_amount += line_total
+            display_items.append({
+                "medicine_id": med_id,
+                "name": name,
+                "quantity": qty,
+                "price": price,
+                "line_total": line_total,
+            })
+
+        return render_template(
+            "checkout.html",
+            items=display_items,
+            total_amount=total_amount,
+            address=session.get("user_address", "")
+        )
+
+    # POST -> place order
+    if not cart_rows:
+        flash("Your cart is empty.", "warning")
+        return redirect(url_for("view_cart"))
+
+    delivery_type = request.form.get("delivery_type", "pickup")
+    if delivery_type not in ("pickup", "delivery"):
+        delivery_type = "pickup"
+
+    delivery_address = session.get("user_address", "")
+
+    total_amount = 0.0
+    items_for_insert = []
+    for row in cart_rows:
+        _, med_id, qty, name, price = row
+        price = price or 0
+        line_total = price * qty
+        total_amount += line_total
+        items_for_insert.append((med_id, qty, price, line_total))
+
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+
+    # Insert into Orders (status always "In Progress" for now)
+    cur.execute(
+        """
+        INSERT INTO Orders (user_id, total_amount, delivery_type, delivery_address, status)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (session["user_id"], total_amount, delivery_type, delivery_address, "In Progress")
+    )
+    order_id = cur.lastrowid
+
+    # Insert line items – store quantity + unit_price only
+    for med_id, qty, price, line_total in items_for_insert:
+        cur.execute(
+            """
+            INSERT INTO OrderItems
+                (order_id, medicine_id, quantity, unit_price)
+            VALUES
+                (?, ?, ?, ?)
+            """,
+            (order_id, med_id, qty, price)
+        )
+
+    # Clear cart
+    cur.execute("DELETE FROM CartItems WHERE user_id = ?", (session["user_id"],))
+
+    conn.commit()
+    conn.close()
+
+    flash(f"Order #{order_id} placed successfully! Status: In Progress.", "success")
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/orders")
+def user_orders():
+    """Full order history page."""
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    orders = query_db(
+        """
+        SELECT
+            O.id,
+            O.total_amount,
+            O.delivery_type,
+            O.status,
+            O.created_at,
+            COALESCE(SUM(OI.quantity), 0) AS total_items
+        FROM Orders O
+        LEFT JOIN OrderItems OI ON O.id = OI.order_id
+        WHERE O.user_id = ?
+        GROUP BY O.id
+        ORDER BY O.created_at DESC
+        """,
+        (session["user_id"],)
+    )
+
+    return render_template("orders.html", orders=orders)
+
+
+@app.route("/orders/<int:order_id>")
+def order_details(order_id):
+    """Return JSON for one order + its items (used by modal)."""
+    if "user_id" not in session:
+        return jsonify({"error": "not_authenticated"}), 401
+
+    order = query_db(
+        """
+        SELECT id, total_amount, delivery_type, delivery_address, status, created_at
+        FROM Orders
+        WHERE id = ? AND user_id = ?
+        """,
+        (order_id, session["user_id"]),
+        one=True
+    )
+
+    if not order:
+        return jsonify({"error": "not_found"}), 404
+
+    (
+        oid,
+        total_amount,
+        delivery_type,
+        delivery_address,
+        status,
+        created_at
+    ) = order
+
+    items_rows = query_db(
+        """
+        SELECT M.name, OI.quantity, OI.unit_price
+        FROM OrderItems OI
+        JOIN medicines M ON OI.medicine_id = M.id
+        WHERE OI.order_id = ?
+        """,
+        (order_id,)
+    )
+
+    items = [
+        {
+            "name": r[0],
+            "quantity": r[1],
+            "unit_price": r[2],
+            "line_total": (r[2] or 0) * r[1],
+        }
+        for r in items_rows
+    ]
+
+    return jsonify({
+        "id": oid,
+        "total_amount": total_amount,
+        "delivery_type": delivery_type,
+        "delivery_address": delivery_address,
+        "status": status,
+        "created_at": created_at,
+        "items": items,
+    })
+
+
 # ----------------------- USER AUTH -----------------------
 @app.route('/create-account', methods=['GET', 'POST'])
 def create_account():
@@ -307,7 +639,7 @@ def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    # Load appointments for this logged-in user
+    # Appointments for this logged-in user
     appointments = query_db(
         """
         SELECT A.id,
@@ -324,6 +656,26 @@ def dashboard():
         (session['user_id'],)
     )
 
+    # Recent orders (latest 3)
+    recent_orders = query_db(
+        """
+        SELECT
+            O.id,
+            O.total_amount,
+            O.delivery_type,
+            O.status,
+            O.created_at,
+            COALESCE(SUM(OI.quantity), 0) AS total_items
+        FROM Orders O
+        LEFT JOIN OrderItems OI ON O.id = OI.order_id
+        WHERE O.user_id = ?
+        GROUP BY O.id
+        ORDER BY O.created_at DESC
+        LIMIT 3
+        """,
+        (session["user_id"],)
+    )
+
     return render_template(
         'dashboard.html',
         first_name=session['user_first_name'],
@@ -331,7 +683,8 @@ def dashboard():
         email=session['user_email'],
         phone=session['user_phone'],
         address=session['user_address'],
-        appointments=appointments
+        appointments=appointments,
+        recent_orders=recent_orders
     )
 
 
@@ -595,7 +948,7 @@ def user_prescription(appointment_id):
                IFNULL(P.created_at, ''),
                D.Name
         FROM Prescriptions AS P
-        JOIN Doctor AS D ON P.doctor_id = D.id
+        JOIN Doctor As D ON P.doctor_id = D.id
         WHERE P.appointment_id = ? AND P.user_id = ?
         ORDER BY P.created_at DESC
         LIMIT 1

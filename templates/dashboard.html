@@ -149,18 +149,26 @@
       </div>
 
       <!-- Recent Orders Card (placeholder for now) -->
-      <div class="card">
-        <div class="card-header">
-          Recent Orders
-        </div>
-        <div class="card-body">
-          <h5 class="card-title">Your Recent Orders</h5>
-          <ul>
-            <li>Order #12345 - Status: Delivered</li>
-            <li>Order #12346 - Status: In Progress</li>
-          </ul>
-        </div>
-      </div>
+     <div class="card-body">
+  <h5 class="card-title mb-3">Your Recent Orders</h5>
+
+  {% if recent_orders %}
+    <ul class="mb-0">
+      {% for o in recent_orders %}
+        {# o = (id, total_amount, delivery_type, status, created_at, total_items) #}
+        <li>
+          Order #{{ o[0] }}
+          – ₹{{ "%.2f"|format(o[1]) }}
+          – {{ o[5] }} item(s)
+          – Status: {{ o[3] or 'In Progress' }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted mb-0">You have no orders yet.</p>
+  {% endif %}
+</div>
+
 
       <!-- NEW: Search Medicines Card -->
       <div class="card">

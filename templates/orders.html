@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Your Orders - Pharmanet</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-light bg-white shadow-sm mb-4">
+  <div class="container-fluid px-4">
+    <a class="navbar-brand" href="{{ url_for('dashboard') }}">⟵ Back to Dashboard</a>
+    <span class="navbar-text">Pharmanet – Your Orders</span>
+  </div>
+</nav>
+
+<div class="container my-4">
+  <h3 class="mb-4">Order History</h3>
+
+  {% if orders %}
+    <div class="table-responsive">
+      <table class="table table-striped align-middle">
+        <thead>
+          <tr>
+            <th>Order #</th>
+            <th>Date</th>
+            <th>Items</th>
+            <th>Total (₹)</th>
+            <th>Delivery</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for o in orders %}
+          {# o = (id, total_amount, delivery_type, status, created_at, total_items) #}
+          <tr>
+            <td>{{ o[0] }}</td>
+            <td>{{ o[4] }}</td>
+            <td>{{ o[5] }}</td>
+            <td>{{ "%.2f"|format(o[1]) }}</td>
+            <td>{{ o[2]|capitalize }}</td>
+            <td>{{ o[3] or 'In Progress' }}</td>
+            <td>
+              <button
+                class="btn btn-sm btn-primary view-order-btn"
+                data-order-id="{{ o[0] }}"
+              >
+                View Details
+              </button>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted">No orders yet.</p>
+  {% endif %}
+</div>
+
+<!-- Order Details Modal -->
+<div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Order Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Order #</strong> <span id="modal-order-id"></span></p>
+        <p><strong>Date:</strong> <span id="modal-order-date"></span></p>
+        <p><strong>Status:</strong> <span id="modal-order-status"></span></p>
+        <p><strong>Delivery Type:</strong> <span id="modal-order-delivery-type"></span></p>
+        <p><strong>Delivery Address:</strong> <span id="modal-order-address"></span></p>
+
+        <hr>
+
+        <h6>Items</h6>
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>Medicine</th>
+                <th>Qty</th>
+                <th>Unit Price (₹)</th>
+                <th>Line Total (₹)</th>
+              </tr>
+            </thead>
+            <tbody id="modal-items-body">
+            </tbody>
+          </table>
+        </div>
+
+        <p class="text-end fw-bold mb-0">
+          Total: ₹<span id="modal-order-total"></span>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const buttons = document.querySelectorAll('.view-order-btn');
+    const modalEl = document.getElementById('orderDetailsModal');
+    const modal = new bootstrap.Modal(modalEl);
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const orderId = btn.dataset.orderId;
+
+        fetch(`/orders/${orderId}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.error) {
+              alert('Unable to load order details.');
+              return;
+            }
+
+            document.getElementById('modal-order-id').textContent = data.id;
+            document.getElementById('modal-order-date').textContent = data.created_at || '';
+            document.getElementById('modal-order-status').textContent = data.status || 'In Progress';
+            document.getElementById('modal-order-delivery-type').textContent = (data.delivery_type || '').toUpperCase();
+            document.getElementById('modal-order-address').textContent = data.delivery_address || '-';
+            document.getElementById('modal-order-total').textContent = data.total_amount;
+
+            const tbody = document.getElementById('modal-items-body');
+            tbody.innerHTML = '';
+
+            (data.items || []).forEach(item => {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td>${item.name}</td>
+                <td>${item.quantity}</td>
+                <td>${item.unit_price}</td>
+                <td>${item.line_total}</td>
+              `;
+              tbody.appendChild(tr);
+            });
+
+            modal.show();
+          })
+          .catch(err => {
+            console.error(err);
+            alert('Error loading order details.');
+          });
+      });
+    });
+  });
+</script>
+</body>
+</html>
